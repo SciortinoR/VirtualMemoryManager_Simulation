@@ -25,6 +25,6 @@ private:
 	// Member Variables
 	const int memory_pages;
 	std::fstream& disk_memory;
-	std::vector<std::pair<int, int>> main_memory;
+	std::vector<std::pair<std::string, unsigned int>> main_memory;
 };
 

@@ -1,3 +1,3 @@
 # Virtual Memory Manager Simulation
 
-This program simulated a Virtual Memory Manager system.
+This program simulates a Virtual Memory Manager system.
