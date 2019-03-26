@@ -14,10 +14,12 @@ public:
 	int getId() const;
 	int getDuration() const;
 	int getStartTime() const;
+	int getLastAccessTime() const;
 	std::string getStatus() const;
 
 	// Setters
 	void setStatus(std::string state);
+	void setLastAccessTime(int last_time);
 
 private:
 
@@ -25,6 +27,7 @@ private:
 	const int id;
 	const int start;
 	const int duration;
+	int last_access_time;
 	std::string status;
 };
 

@@ -44,24 +44,22 @@ void runProcessTasks(Process& process, VirtualMemoryManager& vmm, std::fstream& 
 int main(int argc, char* argv[])
 {
 	// Create input/output streams
-	std::fstream commands(argv[1] + std::string("\\commands.txt"), std::ios::in);
-	std::fstream memconfig(argv[1] + std::string("\\memconfig.txt"), std::ios::in);
-	std::fstream processes(argv[1] + std::string("\\processes.txt"), std::ios::in);
+	std::ifstream commands(argv[1] + std::string("\\commands.txt"), std::ios::in);
+	std::ifstream memconfig(argv[1] + std::string("\\memconfig.txt"), std::ios::in);
+	std::ifstream processes(argv[1] + std::string("\\processes.txt"), std::ios::in);
 	std::fstream output(argv[2] + std::string("\\output.txt"), std::ios::trunc | std::ios::out);
-	std::fstream vm(argv[1] + std::string("\\vm.txt"), std::ios::trunc | std::ios::in | std::ios::out);
-
 
 	// Check if all files opened properly
-	if (!commands || !memconfig || !processes || !output || !vm)
+	if (!commands || !memconfig || !processes || !output)
 	{
-		std::cout << "ERROR: While opening I/O files" << std::endl;
+		std::cout << "ERROR: Could not access I/O files" << std::endl;
 		return 1;
 	}
 
 	// Initializing VMM
 	std::string line;
 	std::getline(memconfig, line);
-	VirtualMemoryManager vmm(std::stoi(line), vm);
+	VirtualMemoryManager vmm(std::stoi(line), argv[1] + std::string("\\vm.txt"));
 
 	// Initialize Processes
 	std::stringstream ss;

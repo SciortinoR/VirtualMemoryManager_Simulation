@@ -9,7 +9,7 @@ class VirtualMemoryManager
 public:
 
 	// Constructors/Destructors
-	VirtualMemoryManager(int pages, std::fstream& vm);
+	VirtualMemoryManager(int pages, std::string filepath);
 	~VirtualMemoryManager();
 
 	// Getters
@@ -24,7 +24,8 @@ private:
 	
 	// Member Variables
 	const int memory_pages;
-	std::fstream& disk_memory;
+	std::string vm_path;
+	std::fstream disk_memory;
 	std::vector<std::pair<std::string, unsigned int>> main_memory;
 };
 
