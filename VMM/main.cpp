@@ -50,11 +50,7 @@ int main(int argc, char* argv[])
 	std::fstream output(argv[2] + std::string("\\output.txt"), std::ios::trunc | std::ios::out);
 
 	// Check if all files opened properly
-	if (!commands || !memconfig || !processes || !output)
-	{
-		std::cout << "ERROR: Could not access I/O files" << std::endl;
-		return 1;
-	}
+	ASSERT((commands && memconfig && processes && output), "I/O ERROR: Could not access I/O files");
 
 	// Initializing VMM
 	std::string line;
