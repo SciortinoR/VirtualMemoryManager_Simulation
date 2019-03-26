@@ -117,10 +117,12 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Process.cpp" />
+    <ClCompile Include="Variable.cpp" />
     <ClCompile Include="VirtualMemoryManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Process.h" />
+    <ClInclude Include="Variable.h" />
     <ClInclude Include="VirtualMemoryManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

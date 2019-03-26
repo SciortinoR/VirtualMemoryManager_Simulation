@@ -4,6 +4,8 @@
 #include <fstream>
 #include <string>
 
+#include "Variable.h"
+
 #ifndef NDEBUG
 #	define ASSERT(condition, message) \
 	do { \
@@ -16,6 +18,8 @@
 #else 
 #	define ASSERT(condition, message) do { } while (false)
 #endif
+
+extern int current_system_time;
 
 class VirtualMemoryManager
 {
@@ -32,6 +36,7 @@ public:
 	void store(std::string variableId, unsigned int value);
 	void release(std::string variableId);
 	unsigned int lookup(std::string variableId);
+	void swap(const Variable& variable, const std::vector<std::string>& disk_buffer = std::vector<std::string>());
 
 private:
 	
@@ -39,6 +44,6 @@ private:
 	const int memory_pages;
 	std::string vm_path;
 	std::fstream disk_memory;
-	std::vector<std::pair<std::string, unsigned int>> main_memory;
+	std::vector<Variable> main_memory;
 };
 

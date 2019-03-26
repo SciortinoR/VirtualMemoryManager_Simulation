@@ -9,6 +9,8 @@
 #include "Process.h"
 #include "VirtualMemoryManager.h"
 
+int current_system_time;
+
 void runProcessTasks(Process& process, VirtualMemoryManager& vmm, std::fstream& commands)
 {
 	// Prepare variables
@@ -19,30 +21,33 @@ void runProcessTasks(Process& process, VirtualMemoryManager& vmm, std::fstream& 
 	std::string variableId;
 	std::getline(commands, line);
 
-	// Determine task to run
+	// Seperate stream tokens
 	ss.str(line);
 	ss >> task;
+	ss >> variableId;
 	std::transform(task.begin(), task.end(), task.begin(), ::tolower);
+
+	// Determine which task to run
 	if (task == std::string("store"))
 	{
-		ss >> variableId;
 		ss >> value;
 		std::thread vmm_thread(&VirtualMemoryManager::store, &vmm, variableId, value);
 	}
 	else if (task == std::string("release"))
 	{
-		ss >> variableId;
 		std::thread vmm_thread(&VirtualMemoryManager::release, &vmm, variableId);
 	}
 	else
 	{
-		ss >> variableId;
 		std::thread vmm_thread(&VirtualMemoryManager::lookup, &vmm, variableId);
 	}
 }
 
 int main(int argc, char* argv[])
 {
+	// Initialize system clock to 0
+	current_system_time = 0;
+
 	// Create input/output streams
 	std::ifstream commands(argv[1] + std::string("\\commands.txt"), std::ios::in);
 	std::ifstream memconfig(argv[1] + std::string("\\memconfig.txt"), std::ios::in);
@@ -80,7 +85,8 @@ int main(int argc, char* argv[])
 		return lhs.getStartTime() < rhs.getStartTime();
 	});
 
-	// Run Process Commands in seperate threads
+	// Set system time to 1ms and run Process commands in seperate threads
+	current_system_time = 1000;		
 	std::vector<std::thread> process_threads(num_processes);
 	for (auto& process : process_list)
 	{
