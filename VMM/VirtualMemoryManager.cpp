@@ -24,13 +24,13 @@ int VirtualMemoryManager::getMemoryPages() const
 void VirtualMemoryManager::store(std::string variableId, unsigned int value)
 {
 	// Check if Main Memory is not full
-	ASSERT((main_memory.size() <= memory_pages), "STORE ERROR: Main Memory page limit exceeded.");
-	if (main_memory.size() != memory_pages)
+	if (main_memory.size() < memory_pages)
 	{
 		main_memory.emplace_back(variableId, value, current_system_time);
 	}
 	else
 	{
+		ASSERT((main_memory.size() > memory_pages), "STORE ERROR: Main Memory page limit exceeded.");
 		Variable variable(variableId, value, current_system_time);
 		swap(variable);
 	}
@@ -38,95 +38,57 @@ void VirtualMemoryManager::store(std::string variableId, unsigned int value)
 
 void VirtualMemoryManager::release(std::string variableId)
 {
-	// Check through Main Memory first
-	ASSERT((main_memory.size() <= memory_pages), "RELEASE ERROR: Main Memory page limit exceeded.");
-	for (auto& variable : main_memory)
-	{
-		if (variable.getId() == variableId)
-		{
-			// Remove variable and end function
-			main_memory.erase(std::remove(main_memory.begin(), main_memory.end(), variable), main_memory.end());
-			return;
-		}
-	}
-
-	// Check through Disk Memory second
-	disk_memory.open(vm_path, std::ios::in);
-	ASSERT(disk_memory, "RELEASE ERROR: Could not access Disk Memory.");
-
-	// Set up necessities
-	int line_counter;
-	std::stringstream ss;
-	std::string token, line;
-	std::vector<std::string> disk_buffer;
-
-	// Loop through Disk Memory
-	while (std::getline(disk_memory, line))
-	{
-		ss << line;
-		ss >> token;
-		if (token != variableId)
-		{
-			disk_buffer.push_back(line);
-			line_counter++;
-		}
-	}
-	disk_memory.close();
-
-	// Check if no variable found
-	if (line_counter == disk_buffer.size())
-	{
-		std::clog << "WARNING (Release): Variable not found in Main or Disk Memory" << std::endl;
-		return;
-	}
-	else
-	{
-		// Re-open and clear contents of file
-		disk_memory.open(vm_path, std::ios::trunc | std::ios::out);
-		ASSERT(disk_memory, "RELEASE ERROR: Could not access Disk Memory.");
-		
-		// Overwrite Disk Memory with new buffer
-		for (auto& line : disk_buffer)
-		{
-			disk_memory << line << std::endl;
-		}
-	}
+	// Search for variable and remove it
+	searchAllMemory(variableId);
 }
 
-unsigned int VirtualMemoryManager::lookup(std::string variableId)
+long VirtualMemoryManager::lookup(std::string variableId)
+{
+	// Search for variable and return it
+	return searchAllMemory(variableId, 1);
+}
+
+long VirtualMemoryManager::searchAllMemory(std::string variableId, int functionId)
 {
 	// Check through Main Memory first
-	ASSERT((main_memory.size() <= memory_pages), "LOOKUP ERROR: Main Memory page limit exceeded.");
 	for (auto& variable : main_memory)
 	{
 		if (variable.getId() == variableId)
 		{
-			return variable.getValue();
+			if (functionId == 0)
+			{
+				// RELEASE: Remove variable and end function
+				main_memory.erase(std::remove(main_memory.begin(), main_memory.end(), variable), main_memory.end());
+				return 0;
+			}
+			else
+			{
+				// LOOKUP: Return variable value
+				return variable.getValue();
+			}
 		}
 	}
 
 	// Check Disk Memory second
 	disk_memory.open(vm_path, std::ios::in);
-	ASSERT(disk_memory, "LOOKUP ERROR: Could not access Disk Memory.");
+	ASSERT(!disk_memory, "DISK ERROR: Could not access Disk Memory.");
 
-	// Set up necessities
-	int line_counter;
+	// Prepare variables
 	Variable temp;
 	std::stringstream ss;
 	std::string id, value, time, line;
 	std::vector<std::string> disk_buffer;
 
-	// Loop through Disk Memory
+	// Find variable in Disk Memory
 	while (std::getline(disk_memory, line))
 	{
-		ss << line;
+		ss.str(line);
 		ss >> id;
 		ss >> value;
 		ss >> time;
 		if (id != variableId)
 		{
 			disk_buffer.push_back(line);
-			line_counter++;
 		}
 		else
 		{
@@ -137,34 +99,33 @@ unsigned int VirtualMemoryManager::lookup(std::string variableId)
 	}
 	disk_memory.close();
 
-	// Check if no variable found
-	if (line_counter == disk_buffer.size())
+	// Check if variable found
+	if (temp.getId().empty())
 	{
-		std::clog << "WARNING (Release): Variable not found in Main or Disk Memory" << std::endl;
+		std::clog << "WARNING (Search): Variable not found in Main or Disk Memory" << std::endl;
 		return -1;
+	}
+	else if (functionId == 0)
+	{
+		// RELEASE: Simple write to Disk
+		writeDisk(disk_buffer);
+		return 0;
 	}
 	else
 	{
-		// Check if main memory is not full
-		ASSERT((main_memory.size() <= memory_pages), "LOOKUP ERROR: Main Memory page limit exceeded.");
-		if (main_memory.size() != memory_pages)
+		// LOOKUP: Move variable to main memory (swap if needed)
+		if (main_memory.size() < memory_pages)
 		{
 			main_memory.push_back(temp);
-
-			// Re-open and clear contents of file
-			disk_memory.open(vm_path, std::ios::trunc | std::ios::out);
-			ASSERT(disk_memory, "LOOKUP ERROR: Could not access Disk Memory.");
-
-			// Overwrite Disk Memory with new buffer
-			for (auto& line : disk_buffer)
-			{
-				disk_memory << line << std::endl;
-			}
+			writeDisk(disk_buffer);
 		}
 		else
 		{
+			ASSERT((main_memory.size() > memory_pages), "LOOKUP ERROR: Main Memory page limit exceeded.");
 			swap(temp, disk_buffer);
 		}
+
+		return temp.getValue();
 	}
 }
 
@@ -184,27 +145,44 @@ void VirtualMemoryManager::swap(const Variable& variable, const std::vector<std:
 	// Write new variable to Main Memory
 	main_memory.push_back(variable);
 
-	// Write to end of Disk Memory if STORE, otherwise rewrite Disk Memory if LOOKUP
+	// Write swapped variable to Disk Memory
+	writeDisk(disk_buffer, temp);
+}
+
+void VirtualMemoryManager::writeDisk(const std::vector<std::string>& disk_buffer, const Variable& variable)
+{
+	// Check if both Disk and Variable buffers are empty
+	ASSERT((disk_buffer.empty() && variable.getId().empty()), "DISK WRITE ERROR: Variable & Disk Buffer are both empty.");
+	
+	// Write to Disk Memory depending on arguments
 	if (disk_buffer.empty())
 	{
 		// Access(Open) Disk Memory at end of file
 		disk_memory.open(vm_path, std::ios::ate | std::ios::out);
-		ASSERT(disk_memory, "SWAP ERROR: Could not access Disk Memory.");
-
-		// Write previously removed variable to Disk Memory
-		disk_memory << temp.getId() << " " << temp.getValue() << " " << temp.getLastAccessTime() << std::endl;
-		disk_memory.close();
+		ASSERT(!disk_memory, "DISK ERROR: Could not access Disk Memory.");
 	}
 	else
 	{
-		// Re-open and clear contents of file
+		// Open and clear contents of Disk Memory
 		disk_memory.open(vm_path, std::ios::trunc | std::ios::out);
-		ASSERT(disk_memory, "SWAP ERROR: Could not access Disk Memory.");
+		ASSERT(!disk_memory, "DISK ERROR: Could not access Disk Memory.");
 
 		// Overwrite Disk Memory with new buffer
 		for (auto& line : disk_buffer)
 		{
 			disk_memory << line << std::endl;
 		}
+	}
+	
+	// Check if Variable found
+	if (variable.getId().empty())
+	{
+		disk_memory.close();
+	}
+	else
+	{
+		// Write swapped out variable to Disk Memory 
+		disk_memory << variable.getId() << " " << variable.getValue() << " " << variable.getLastAccessTime() << std::endl;
+		disk_memory.close();
 	}
 }
