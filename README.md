@@ -4,6 +4,7 @@ This program simulates a Virtual Memory Manager system.
 Main memory is represented as a vector while secondary disk storage is represented as an fstream object (txt file).
 
 Inputs are described as follows:
+
 processes.txt - First line int represents N processes, followed by N lines containing process ready time and service time (in ms).
 
 commands.txt - List of tasks to be run by processes followed by a variable string ID and variable unsigned int value if needed by task.
