@@ -83,6 +83,7 @@ long VirtualMemoryManager::searchAllMemory(std::string variableId, int functionI
 	while (std::getline(disk_memory, line))
 	{
 		ss.str(line);
+		ss.clear();
 		ss >> id;
 		ss >> value;
 		ss >> time;
@@ -185,4 +186,9 @@ void VirtualMemoryManager::writeDisk(const std::vector<std::string>& disk_buffer
 		disk_memory << variable.getId() << " " << variable.getValue() << " " << variable.getLastAccessTime() << std::endl;
 		disk_memory.close();
 	}
+}
+
+bool operator ==(const Variable& v1, const Variable& v2)
+{
+	return v1.getId() == v2.getId();
 }

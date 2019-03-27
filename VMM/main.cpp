@@ -11,7 +11,7 @@
 
 int current_system_time;
 
-void runProcessTasks(Process& process, VirtualMemoryManager& vmm, std::fstream& commands)
+void runProcessTasks(Process& process, VirtualMemoryManager& vmm, std::ifstream& commands)
 {
 	// Prepare variables
 	unsigned int value;
@@ -46,26 +46,27 @@ void runProcessTasks(Process& process, VirtualMemoryManager& vmm, std::fstream& 
 	}
 }
 
-std::vector<Process>& initProcesses(std::ifstream& processes)
+std::vector<Process> initProcesses(std::ifstream& processes)
 {
 	// Prepare variables
-	std::string line;
+	std::string line, start, duration;
 	std::stringstream ss;
-	std::vector<int> tokens(2);
 	std::getline(processes, line);
 	int num_processes = std::stoi(line);
-	std::vector<Process> process_list(num_processes);
+
+	// Vectors
+	std::vector<Process> process_list;
+	process_list.reserve(num_processes);
 
 	// Splits lines into tokens and generates Process list
 	for (int i = 0; i < num_processes; ++i)
 	{
 		std::getline(processes, line);
 		ss.str(line);
-		while (ss >> line)
-		{
-			tokens.push_back(std::stoi(line));
-		}
-		process_list.emplace_back(i, tokens[0], tokens[1]);
+		ss.clear();
+		ss >> start;
+		ss >> duration;
+		process_list.emplace_back(i, std::stoi(start), std::stoi(duration));
 	}
 
 	// Sort Process list in ascending start time order
@@ -99,7 +100,8 @@ int main(int argc, char* argv[])
 	std::vector<Process> process_list = initProcesses(processes);
 
 	// Run Process commands in seperate threads
-	std::vector<std::thread> process_threads(process_list.size());
+	std::vector<std::thread> process_threads;
+	process_threads.reserve(process_list.size());
 	for (auto& process : process_list)
 	{
 		process_threads.emplace_back(runProcessTasks, std::ref(process), std::ref(vmm), std::ref(commands));

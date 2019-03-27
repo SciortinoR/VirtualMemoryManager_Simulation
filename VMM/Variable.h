@@ -20,6 +20,7 @@ public:
 	void setId(std::string variableId);
 	void setValue(unsigned int value);
 	void setLastAccessTime(int time);
+
 private:
 
 	std::string id;

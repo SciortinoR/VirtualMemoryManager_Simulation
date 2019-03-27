@@ -22,9 +22,9 @@ public:
 private:
 
 	// Member Variables
-	const int id;
-	const int start;
-	const int duration;
+	int id;
+	int start;
+	int duration;
 	std::string status;
 };
 
