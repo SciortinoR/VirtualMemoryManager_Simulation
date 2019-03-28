@@ -1,5 +1,9 @@
 #include "Process.h"
 
+Process::Process()
+{
+}
+
 Process::Process(int Id, int start_time, int service_time) :
 	id(Id), start(start_time), duration(service_time), status("Pending start")	
 {

@@ -4,6 +4,10 @@
 
 #include "VirtualMemoryManager.h"
 
+VirtualMemoryManager::VirtualMemoryManager() : memory_pages(0)
+{
+}
+
 VirtualMemoryManager::VirtualMemoryManager(int pages, std::string filepath) :
 	memory_pages(pages), main_memory(memory_pages), vm_path(filepath)
 {	
@@ -21,17 +25,22 @@ int VirtualMemoryManager::getMemoryPages() const
 	return memory_pages;
 }
 
+const std::stringstream& VirtualMemoryManager::getSwapLog() const 
+{
+	return swap_log;
+}	
+
 void VirtualMemoryManager::store(std::string variableId, unsigned int value)
 {
 	// Check if Main Memory is not full
 	if (main_memory.size() < memory_pages)
 	{
-		main_memory.emplace_back(variableId, value, current_system_time);
+		main_memory.emplace_back(variableId, value, system_clock);
 	}
 	else
 	{
 		ASSERT((main_memory.size() > memory_pages), "STORE ERROR: Main Memory page limit exceeded.");
-		Variable variable(variableId, value, current_system_time);
+		Variable variable(variableId, value, system_clock);
 		swap(variable);
 	}
 }
@@ -84,9 +93,7 @@ long VirtualMemoryManager::searchAllMemory(std::string variableId, int functionI
 	{
 		ss.str(line);
 		ss.clear();
-		ss >> id;
-		ss >> value;
-		ss >> time;
+		ss >> id >> value >> time;
 		if (id != variableId)
 		{
 			disk_buffer.push_back(line);
@@ -148,6 +155,9 @@ void VirtualMemoryManager::swap(const Variable& variable, const std::vector<std:
 
 	// Write swapped variable to Disk Memory
 	writeDisk(disk_buffer, temp);
+
+	// Log Swap
+	log_swap(variable, temp);
 }
 
 void VirtualMemoryManager::writeDisk(const std::vector<std::string>& disk_buffer, const Variable& variable)
@@ -186,6 +196,14 @@ void VirtualMemoryManager::writeDisk(const std::vector<std::string>& disk_buffer
 		disk_memory << variable.getId() << " " << variable.getValue() << " " << variable.getLastAccessTime() << std::endl;
 		disk_memory.close();
 	}
+}
+
+void VirtualMemoryManager::log_swap(const Variable& new_var, const Variable& old_var)
+{
+	swap_log.str("Clock: " + std::to_string(system_clock) + ", Memory Manager, SWAP: Variable " 
+		+ new_var.getId() + " with Variable " + old_var.getId());
+
+	swap_log.clear();
 }
 
 bool operator ==(const Variable& v1, const Variable& v2)

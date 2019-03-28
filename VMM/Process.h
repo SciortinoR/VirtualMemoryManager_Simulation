@@ -7,6 +7,7 @@ class Process
 public:
 
 	// Constructors/Destructors
+	Process();
 	Process(int Id, int start_time, int service_time);
 	~Process();
 

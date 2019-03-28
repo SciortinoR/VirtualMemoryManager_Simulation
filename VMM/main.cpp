@@ -9,7 +9,34 @@
 #include "Process.h"
 #include "VirtualMemoryManager.h"
 
-int current_system_time;
+int system_clock;
+std::stringstream system_log;
+
+void log(const Process& process = Process(), const VirtualMemoryManager& vmm = VirtualMemoryManager(), 
+	const std::string& task = std::string(), const std::string& variableId = std::string(), 
+	const std::string& value = std::string())
+{
+	if (!process.getStatus().empty())
+	{
+		system_log << "Clock: " << system_clock << ", Process ";
+		if (task.empty())
+		{
+			system_log << process.getId() << ": " << process.getStatus() << "." << std::endl;
+		}
+		else 
+		{
+			system_log << process.getId() << ", " << task << ": Variable " << variableId;
+			if (task == std::string("Release"))
+			{
+				system_log << ", Value: " << value << std::endl;
+			}
+		}
+	}
+	else
+	{
+		system_log << vmm.getSwapLog().rdbuf();
+	}
+}
 
 void runProcessTasks(Process& process, VirtualMemoryManager& vmm, std::ifstream& commands)
 {
@@ -22,8 +49,7 @@ void runProcessTasks(Process& process, VirtualMemoryManager& vmm, std::ifstream&
 
 	// Seperate stream tokens
 	ss.str(line);
-	ss >> task;
-	ss >> variableId;
+	ss >> task >> variableId;
 	std::transform(task.begin(), task.end(), task.begin(), ::tolower);
 
 	// Determine which task to run
@@ -44,6 +70,11 @@ void runProcessTasks(Process& process, VirtualMemoryManager& vmm, std::ifstream&
 	{
 		std::clog << "WARNING (Process): Could not determine task to run.";
 	}
+
+	// For proper logging pruposes
+	task[0] = toupper(task[0]);
+
+	// NOTE: Rewrite commands buffer after each command execution
 }
 
 std::vector<Process> initProcesses(std::ifstream& processes)
@@ -64,9 +95,8 @@ std::vector<Process> initProcesses(std::ifstream& processes)
 		std::getline(processes, line);
 		ss.str(line);
 		ss.clear();
-		ss >> start;
-		ss >> duration;
-		process_list.emplace_back(i, std::stoi(start), std::stoi(duration));
+		ss >> start >> duration;
+		process_list.emplace_back(i + 1, std::stoi(start), std::stoi(duration));
 	}
 
 	// Sort Process list in ascending start time order
@@ -80,7 +110,7 @@ std::vector<Process> initProcesses(std::ifstream& processes)
 int main(int argc, char* argv[])
 {
 	// Initialize system clock to 1ms
-	current_system_time = 1000;
+	system_clock = 1000;
 
 	// Define input/output streams
 	std::ifstream commands(argv[1] + std::string("\\commands.txt"), std::ios::in);

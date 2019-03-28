@@ -21,35 +21,41 @@
 #endif
 
 // Current system time accessible to main and vmm
-extern int current_system_time;
+extern int system_clock;
 
 class VirtualMemoryManager
 {
 public:
 
 	// Constructors/Destructors
+	VirtualMemoryManager();
 	VirtualMemoryManager(int pages, std::string filepath);
 	~VirtualMemoryManager();
 
 	// Getters
 	int getMemoryPages() const;
+	const std::stringstream& getSwapLog() const;
 
 	// Process API functions
 	void store(std::string variableId, unsigned int value);
 	void release(std::string variableId);
 	long lookup(std::string variableId);
 
+private:
+
 	// Memory Management functions
 	long searchAllMemory(std::string variableId, int functionId = 0);
 	void swap(const Variable& variable, const std::vector<std::string>& disk_buffer = std::vector<std::string>());
 	void writeDisk(const std::vector<std::string>& disk_buffer, const Variable& variable = Variable());
 
-private:
+	// Swap Logger
+	void log_swap(const Variable& new_var, const Variable& old_var);
 	
 	// Member Variables
 	const int memory_pages;
 	std::string vm_path;
 	std::fstream disk_memory;
+	std::stringstream swap_log;
 	std::vector<Variable> main_memory;
 };
 
