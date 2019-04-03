@@ -73,6 +73,7 @@ long VirtualMemoryManager::searchAllMemory(std::string variableId, int functionI
 			else
 			{
 				// LOOKUP: Return variable value
+				variable.setLastAccessTime(system_clock);
 				return variable.getValue();
 			}
 		}
@@ -110,7 +111,7 @@ long VirtualMemoryManager::searchAllMemory(std::string variableId, int functionI
 	// Check if variable found
 	if (temp.getId().empty())
 	{
-		std::clog << "WARNING (Search): Variable not found in Main or Disk Memory" << std::endl;
+		std::clog << "WARNING (Search): Variable " << variableId << "not found in Main or Disk Memory" << std::endl;
 		return -1;
 	}
 	else if (functionId == 0)
@@ -121,6 +122,9 @@ long VirtualMemoryManager::searchAllMemory(std::string variableId, int functionI
 	}
 	else
 	{
+		// Change access time of variable
+		temp.setLastAccessTime(system_clock);
+		
 		// LOOKUP: Move variable to main memory (swap if needed)
 		if (main_memory.size() < memory_pages)
 		{
@@ -154,6 +158,7 @@ void VirtualMemoryManager::swap(const Variable& variable, const std::vector<std:
 	main_memory.push_back(variable);
 
 	// Write swapped variable to Disk Memory
+	temp.setLastAccessTime(system_clock);
 	writeDisk(disk_buffer, temp);
 
 	// Log Swap
