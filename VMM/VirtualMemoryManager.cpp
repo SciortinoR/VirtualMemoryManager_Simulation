@@ -1,6 +1,8 @@
 #include <iostream>
 #include <algorithm>
 #include <sstream>
+#include <chrono>
+#include <thread>
 
 #include "VirtualMemoryManager.h"
 
@@ -9,9 +11,10 @@ VirtualMemoryManager::VirtualMemoryManager() : memory_pages(0)
 }
 
 VirtualMemoryManager::VirtualMemoryManager(int pages, std::string filepath) :
-	memory_pages(pages), main_memory(memory_pages), vm_path(filepath)
+	memory_pages(pages), vm_path(filepath), swap_time(0)
 {	
 	// Initial clear of Disk Memory contents 
+	main_memory.reserve(memory_pages);
 	disk_memory.open(vm_path, std::ios::trunc);
 	disk_memory.close();
 }
@@ -23,6 +26,11 @@ VirtualMemoryManager::~VirtualMemoryManager()
 int VirtualMemoryManager::getMemoryPages() const
 {
 	return memory_pages;
+}
+
+int VirtualMemoryManager::getSwapTime() const
+{
+	return swap_time;
 }
 
 const std::stringstream& VirtualMemoryManager::getSwapLog() const 
@@ -116,9 +124,19 @@ long VirtualMemoryManager::searchAllMemory(std::string variableId, int functionI
 	}
 	else if (functionId == 0)
 	{
-		// RELEASE: Simple write to Disk
-		writeDisk(disk_buffer);
-		return 0;
+		// RELEASE: 
+		if (disk_buffer.empty())
+		{
+			// Clear Disk Memory if only one variable inside it
+			disk_memory.open(vm_path, std::ios::trunc | std::ios::out);
+			disk_memory.close();
+			return 0;
+		}
+		else
+		{
+			writeDisk(disk_buffer);
+			return 0;
+		}
 	}
 	else
 	{
@@ -160,6 +178,10 @@ void VirtualMemoryManager::swap(const Variable& variable, const std::vector<std:
 	// Write swapped variable to Disk Memory
 	temp.setLastAccessTime(system_clock);
 	writeDisk(disk_buffer, temp);
+
+	// Simulate sleep time for swap
+	swap_time = randomTime();
+	std::this_thread::sleep_for(std::chrono::milliseconds(swap_time));
 
 	// Log Swap
 	log_swap(variable, temp);
@@ -205,8 +227,8 @@ void VirtualMemoryManager::writeDisk(const std::vector<std::string>& disk_buffer
 
 void VirtualMemoryManager::log_swap(const Variable& new_var, const Variable& old_var)
 {
-	swap_log.str("Clock: " + std::to_string(system_clock) + ", Memory Manager, SWAP: Variable " 
-		+ new_var.getId() + " with Variable " + old_var.getId());
+	swap_log.str("Clock: " + std::to_string(system_clock + swap_time) + ", Memory Manager, SWAP: Variable " 
+		+ new_var.getId() + " with Variable " + old_var.getId() + "\n");
 
 	swap_log.clear();
 }

@@ -20,8 +20,9 @@
 #	define ASSERT(condition, message) do { } while (false)
 #endif
 
-// Current system time accessible to main and vmm
+// System time w/ time generator
 extern int system_clock;
+extern int randomTime();
 
 class VirtualMemoryManager
 {
@@ -34,8 +35,9 @@ public:
 
 	// Getters
 	int getMemoryPages() const;
+	int getSwapTime() const;
 	const std::stringstream& getSwapLog() const;
-
+	
 	// Process API functions
 	void store(std::string variableId, unsigned int value);
 	void release(std::string variableId);
@@ -53,6 +55,7 @@ private:
 	
 	// Member Variables
 	const int memory_pages;
+	int swap_time;
 	std::string vm_path;
 	std::fstream disk_memory;
 	std::stringstream swap_log;

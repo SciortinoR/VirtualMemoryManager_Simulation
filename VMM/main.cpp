@@ -6,24 +6,33 @@
 #include <sstream>
 #include <algorithm>
 #include <future>
+#include <random>
 
 #include "Process.h"
 #include "VirtualMemoryManager.h"
 #include "Variable.h"
 
+// System Variables
 int system_clock;
-std::stringstream system_log;
-std::mutex m, read, run, start;
+bool finished = false;
+std::mutex m;
 std::condition_variable cv;
+std::stringstream system_log;
+
+// Random Number generator
+std::random_device rd;										// Get random seed from the OS entropy device
+std::mt19937_64 eng(rd());									// Use the 64-bit Mersenne Twister 19937 generator and seed it with entropy
+auto dist = std::uniform_int_distribution<int>{ 1, 1000 };	// Define distribution of random numbers
 
 int randomTime()
 {
-	return rand() % 1000 + 1;
+	return dist(eng);
 }
 
 void log(const VirtualMemoryManager& vmm = VirtualMemoryManager(), const Process& process = Process(),
 	const std::string& task = std::string(), const Variable& variable = Variable())
 {
+	std::scoped_lock<std::mutex> print_lk(m);
 	if (!process.getStatus().empty())
 	{
 		system_log << "Clock: ";
@@ -48,10 +57,12 @@ void log(const VirtualMemoryManager& vmm = VirtualMemoryManager(), const Process
 			}
 		}
 	}
-	else
+	else if (!vmm.getSwapLog().str().empty())
 	{
 		system_log << vmm.getSwapLog().rdbuf();
+		system_clock += vmm.getSwapTime();
 	}
+	system_log.clear();
 }
 
 void runProcessTasks(Process& process, VirtualMemoryManager& vmm, std::ifstream& commands)
@@ -61,28 +72,24 @@ void runProcessTasks(Process& process, VirtualMemoryManager& vmm, std::ifstream&
 	std::string line, task, variableId;
 	std::stringstream ss;
 
-	while (1)
+	while (process.getEndTime() > system_clock)
 	{
 		{
-			// Will wait until process is notified of new system clock
-			std::unique_lock<std::mutex> lk(m);
-			while (process.getStartTime() > system_clock)
-			{
-				cv.wait(lk);
-			}
+			// Thread wait until process is notified of new system clock
+			std::unique_lock<std::mutex> time_lk(m);
+			cv.wait(time_lk, [&process] { return ((process.getStartTime() <= system_clock) || (finished)); });
 		}
 
-		// Access commands one at a time
-		read.lock();
-		if (!std::getline(commands, line))
 		{
-			// Checks for EOF (no more Process tasks)
-			process.setStatus(Process::finished);
-			log(vmm, process);
-			read.unlock();
-			return;
+			// Access commands one at a time & check if EOF (no more Process tasks)
+			std::scoped_lock<std::mutex> read_lk(m);
+			if (!std::getline(commands, line))
+			{
+				finished = true;
+				cv.notify_all();
+				break;
+			}
 		}
-		read.unlock();
 
 		// Seperate stream tokens
 		ss.str(line);
@@ -95,64 +102,60 @@ void runProcessTasks(Process& process, VirtualMemoryManager& vmm, std::ifstream&
 		// Log process if just started
 		if (process.getStatus() == Process::pending)
 		{
+			// Sleep 10 milliseconds to simulate start & notify other threads of new system time
 			process.setStatus(Process::started);
 			log(vmm, process);
-
-			// Sleep 10 milliseconds to simulate start & notify other threads of new system time
-			std::lock_guard<std::mutex> lk(m);
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 			system_clock += 10;
 			cv.notify_all();
 		}
 
-		// Determine which task to run & log Process activity
-		run.lock();
-		std::thread vmm_thread;
-		std::future<long> lookup_value;
-		if (task == std::string("Store"))
 		{
-			ss >> value;
-			vmm_thread = std::thread(&VirtualMemoryManager::store, &vmm, variableId, value);
-			vmm_thread.join();
-			log(vmm, process, task, Variable(variableId, value, 0));
-		}
-		else if (task == std::string("Release"))
-		{
-			vmm_thread = std::thread(&VirtualMemoryManager::release, &vmm, variableId);
-			vmm_thread.join();
-			log(vmm, process, task, Variable(variableId, 0, 0));
-		}
-		else if (task == std::string("Lookup"))
-		{
-			lookup_value = std::async(&VirtualMemoryManager::lookup, &vmm, variableId);
-			long val = lookup_value.get();
-			log(vmm, process, task, Variable(variableId, val, 0));
-		}
-		else
-		{
-			std::clog << "WARNING (Process " << process.getId() << "): Could not determine task to run.";
-			continue;
-		}
-		run.unlock();
-
-		{
-			// Log VMM activity if Swap occured and notify other threads of new system time
-			std::lock_guard<std::mutex> lk(m);
-			int wait_time = randomTime();
-			system_clock += wait_time;
-			cv.notify_all();
-			std::this_thread::sleep_for(std::chrono::milliseconds(wait_time));
-			log(vmm);
+			// Determine which task to run & log Process activity
+			std::unique_lock<std::mutex> run_lk(m);
+			std::thread vmm_thread;
+			std::future<long> lookup_value;
+			if (task == std::string("Store"))
+			{
+				ss >> value;
+				vmm_thread = std::thread(&VirtualMemoryManager::store, &vmm, variableId, value);
+				vmm_thread.join();
+				run_lk.unlock();
+				log(vmm, process, task, Variable(variableId, value, 0));
+			}
+			else if (task == std::string("Release"))
+			{
+				vmm_thread = std::thread(&VirtualMemoryManager::release, &vmm, variableId);
+				vmm_thread.join();
+				run_lk.unlock();
+				log(vmm, process, task, Variable(variableId, 0, 0));
+			}
+			else if (task == std::string("Lookup"))
+			{
+				lookup_value = std::async(&VirtualMemoryManager::lookup, &vmm, variableId);
+				long val = lookup_value.get();
+				run_lk.unlock();
+				log(vmm, process, task, Variable(variableId, val, 0));
+			}
+			else
+			{
+				std::clog << "WARNING (Process " << process.getId() << "): Could not determine task to run.";
+				continue;
+			}
 		}
 
-		// Log process if ended
-		if (process.getEndTime() <= system_clock)
-		{
-			process.setStatus(Process::finished);
-			log(vmm, process);
-			return;
-		}
+		// Log VMM activity if Swap occured and notify other threads of new system time
+		log(vmm);
+		cv.notify_all();
+		int wait_time = randomTime();
+		system_clock += wait_time;
+		cv.notify_all();
+		std::this_thread::sleep_for(std::chrono::milliseconds(wait_time));
 	}
+
+	// Finished process
+	process.setStatus(Process::finished);
+	log(vmm, process);
 }
 
 std::vector<Process> initProcesses(std::ifstream& processes)
@@ -177,11 +180,11 @@ std::vector<Process> initProcesses(std::ifstream& processes)
 		process_list.emplace_back(i + 1, std::stoi(start), std::stoi(duration));
 	}
 
-	//// Sort Process list in ascending start time order
-	//std::sort(process_list.begin(), process_list.end(), [](const auto& lhs, const auto& rhs)
-	//{
-	//	return lhs.getStartTime() < rhs.getStartTime();
-	//});
+	// Sort Process list in ascending start time order
+	std::sort(process_list.begin(), process_list.end(), [](const auto& lhs, const auto& rhs)
+	{
+		return lhs.getStartTime() < rhs.getStartTime();
+	});
 
 	return process_list;
 }
@@ -189,7 +192,6 @@ int main(int argc, char* argv[])
 {
 	// Initialize system clock to 1ms & seed random number generator
 	system_clock = 1000;
-	srand(1);
 
 	// Define input/output streams
 	std::ifstream commands(argv[1] + std::string("\\commands.txt"), std::ios::in);
@@ -221,6 +223,9 @@ int main(int argc, char* argv[])
 	{
 		thread.join();
 	}
+
+	// Write contents of system log to output file
+	output << system_log.rdbuf();
 
 	return 0;
 }
