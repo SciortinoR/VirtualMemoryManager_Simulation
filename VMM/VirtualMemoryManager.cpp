@@ -11,7 +11,7 @@ VirtualMemoryManager::VirtualMemoryManager() : memory_pages(0)
 }
 
 VirtualMemoryManager::VirtualMemoryManager(int pages, std::string filepath) :
-	memory_pages(pages), vm_path(filepath), swap_time(0)
+	memory_pages(pages), vm_path(filepath)
 {	
 	// Initial clear of Disk Memory contents 
 	main_memory.reserve(memory_pages);
@@ -28,27 +28,22 @@ int VirtualMemoryManager::getMemoryPages() const
 	return memory_pages;
 }
 
-int VirtualMemoryManager::getSwapTime() const
-{
-	return swap_time;
-}
-
-const std::stringstream& VirtualMemoryManager::getSwapLog() const 
+const std::stringstream& VirtualMemoryManager::getSwapLog() const
 {
 	return swap_log;
-}	
+}
 
 void VirtualMemoryManager::store(std::string variableId, unsigned int value)
 {
 	// Check if Main Memory is not full
 	if (main_memory.size() < memory_pages)
 	{
-		main_memory.emplace_back(variableId, value, system_clock);
+		main_memory.emplace_back(variableId, value, system_clock.getTime());
 	}
 	else
 	{
 		ASSERT((main_memory.size() > memory_pages), "STORE ERROR: Main Memory page limit exceeded.");
-		Variable variable(variableId, value, system_clock);
+		Variable variable(variableId, value, system_clock.getTime());
 		swap(variable);
 	}
 }
@@ -81,7 +76,7 @@ long VirtualMemoryManager::searchAllMemory(std::string variableId, int functionI
 			else
 			{
 				// LOOKUP: Return variable value
-				variable.setLastAccessTime(system_clock);
+				variable.setLastAccessTime(system_clock.getTime());
 				return variable.getValue();
 			}
 		}
@@ -141,7 +136,7 @@ long VirtualMemoryManager::searchAllMemory(std::string variableId, int functionI
 	else
 	{
 		// Change access time of variable
-		temp.setLastAccessTime(system_clock);
+		temp.setLastAccessTime(system_clock.getTime());
 		
 		// LOOKUP: Move variable to main memory (swap if needed)
 		if (main_memory.size() < memory_pages)
@@ -172,19 +167,15 @@ void VirtualMemoryManager::swap(const Variable& variable, const std::vector<std:
 	}
 	main_memory.erase(std::remove(main_memory.begin(), main_memory.end(), temp), main_memory.end());
 
+	// Log Swap
+	log_swap(variable, temp);
+
 	// Write new variable to Main Memory
 	main_memory.push_back(variable);
 
 	// Write swapped variable to Disk Memory
-	temp.setLastAccessTime(system_clock);
+	temp.setLastAccessTime(system_clock.getTime());
 	writeDisk(disk_buffer, temp);
-
-	// Simulate sleep time for swap
-	swap_time = randomTime();
-	std::this_thread::sleep_for(std::chrono::milliseconds(swap_time));
-
-	// Log Swap
-	log_swap(variable, temp);
 }
 
 void VirtualMemoryManager::writeDisk(const std::vector<std::string>& disk_buffer, const Variable& variable)
@@ -227,9 +218,8 @@ void VirtualMemoryManager::writeDisk(const std::vector<std::string>& disk_buffer
 
 void VirtualMemoryManager::log_swap(const Variable& new_var, const Variable& old_var)
 {
-	swap_log.str("Clock: " + std::to_string(system_clock + swap_time) + ", Memory Manager, SWAP: Variable " 
-		+ new_var.getId() + " with Variable " + old_var.getId() + "\n");
-
+	swap_log.str("Clock: " + std::to_string(system_clock.getTime()) + ", Memory Manager, SWAP: Variable " + 
+		new_var.getId() + " with Variable " + old_var.getId() + "\n");
 	swap_log.clear();
 }
 

@@ -3,8 +3,10 @@
 #include <vector>
 #include <fstream>
 #include <string>
+#include <shared_mutex>
 
 #include "Variable.h"
+#include "Clock.h"
 
 // Assertion for accessing Main/Disk Memory
 #ifndef NDEBUG
@@ -20,9 +22,9 @@
 #	define ASSERT(condition, message) do { } while (false)
 #endif
 
-// System time w/ time generator
-extern int system_clock;
+// System variables & functions shared with main
 extern int randomTime();
+extern Clock system_clock;
 
 class VirtualMemoryManager
 {
@@ -35,9 +37,8 @@ public:
 
 	// Getters
 	int getMemoryPages() const;
-	int getSwapTime() const;
 	const std::stringstream& getSwapLog() const;
-	
+
 	// Process API functions
 	void store(std::string variableId, unsigned int value);
 	void release(std::string variableId);
@@ -55,10 +56,9 @@ private:
 	
 	// Member Variables
 	const int memory_pages;
-	int swap_time;
 	std::string vm_path;
 	std::fstream disk_memory;
-	std::stringstream swap_log;
 	std::vector<Variable> main_memory;
+	std::stringstream swap_log;
 };
 
