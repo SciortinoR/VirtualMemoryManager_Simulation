@@ -15,7 +15,8 @@ VirtualMemoryManager::VirtualMemoryManager(int pages, std::string filepath) :
 {	
 	// Initial clear of Disk Memory contents 
 	main_memory.reserve(memory_pages);
-	disk_memory.open(vm_path, std::ios::trunc);
+	disk_memory.open(vm_path, std::ios::trunc | std::ios::out);
+	ASSERT(!disk_memory, "DISK ERROR: Could not access Disk Memory.");
 	disk_memory.close();
 }
 
@@ -114,7 +115,7 @@ long VirtualMemoryManager::searchAllMemory(std::string variableId, int functionI
 	// Check if variable found
 	if (temp.getId().empty())
 	{
-		std::clog << "WARNING (Search): Variable " << variableId << "not found in Main or Disk Memory" << std::endl;
+		std::clog << "WARNING (Search " << functionId << "): Variable " << variableId << " not found in Main or Disk Memory" << std::endl;
 		return -1;
 	}
 	else if (functionId == 0)
@@ -187,7 +188,7 @@ void VirtualMemoryManager::writeDisk(const std::vector<std::string>& disk_buffer
 	if (disk_buffer.empty())
 	{
 		// Access(Open) Disk Memory at end of file
-		disk_memory.open(vm_path, std::ios::ate | std::ios::out);
+		disk_memory.open(vm_path, std::ios::app | std::ios::out);
 		ASSERT(!disk_memory, "DISK ERROR: Could not access Disk Memory.");
 	}
 	else
