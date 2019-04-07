@@ -8,12 +8,12 @@ public:
 
 	// Constructors/Destructors
 	Variable();
-	Variable(std::string variableId, unsigned int value, int time);
+	Variable(std::string variableId, long value, int time);
 	~Variable();
 
 	// Getters
 	std::string getId() const;
-	unsigned int getValue() const;
+	long getValue() const;
 	int getLastAccessTime() const;
 
 	//Setters
@@ -24,7 +24,7 @@ public:
 private:
 
 	std::string id;
-	unsigned int val;
+	long val;
 	int last_access_time;
 };
 

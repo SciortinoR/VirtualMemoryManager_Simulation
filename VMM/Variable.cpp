@@ -4,7 +4,7 @@ Variable::Variable()
 {
 }
 
-Variable::Variable(std::string variableId, unsigned int value, int time) :
+Variable::Variable(std::string variableId, long value, int time) :
 	id(variableId), val(value), last_access_time(time)
 {
 }
@@ -18,7 +18,7 @@ std::string Variable::getId() const
 	return id;
 }
 
-unsigned int Variable::getValue() const
+long Variable::getValue() const
 {
 	return val;
 }
