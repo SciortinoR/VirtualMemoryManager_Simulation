@@ -44,8 +44,7 @@ void VirtualMemoryManager::store(std::string variableId, unsigned int value)
 	else
 	{
 		ASSERT((main_memory.size() > memory_pages), "STORE ERROR: Main Memory page limit exceeded.");
-		Variable variable(variableId, value, system_clock.getTime());
-		swap(variable);
+		swap(Variable(variableId, value, system_clock.getTime()));
 	}
 }
 
