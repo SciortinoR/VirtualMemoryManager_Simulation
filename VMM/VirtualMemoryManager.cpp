@@ -115,7 +115,16 @@ long VirtualMemoryManager::searchAllMemory(std::string variableId, int functionI
 	// Check if variable found
 	if (temp.getId().empty())
 	{
-		std::clog << "WARNING (Search " << functionId << "): Variable " << variableId << " not found in Main or Disk Memory" << std::endl;
+		std::clog << "WARNING ";
+		if (functionId == 0)
+		{
+			std::clog << "(Release)";
+		}
+		else 
+		{
+			std::clog << "(Lookup)";
+		}
+		std::clog << ": Variable " << variableId << " not found in Main or Disk Memory." << std::endl;
 		return -1;
 	}
 	else if (functionId == 0)
