@@ -23,7 +23,6 @@
 #endif
 
 // System variables & functions shared with main
-extern int randomTime();
 extern Clock system_clock;
 
 class VirtualMemoryManager
