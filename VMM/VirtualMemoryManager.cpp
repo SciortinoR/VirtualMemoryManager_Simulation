@@ -234,5 +234,5 @@ void VirtualMemoryManager::log_swap(const Variable& new_var, const Variable& old
 
 bool operator ==(const Variable& v1, const Variable& v2)
 {
-	return v1.getId() == v2.getId();
+	return ((v1.getId() == v2.getId()) && v1.getValue() == v2.getValue());
 }
